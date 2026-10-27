@@ -46,17 +46,18 @@ class PlayerDoraemon {
     if (window.assetLoader.hasImage('doraemon_sheet')) {
       const sheet = window.assetLoader.getImage('doraemon_sheet');
       ctx.scale(this.facing, 1);
-      // Vẽ frame từ sprite sheet 64x64
-      ctx.drawImage(sheet, frameIndex * 64, 0, 64, 64, -32, -54, 64, 64);
+      // Vẽ frame từ sprite sheet 48x48 pixel art, phóng to nét chuẩn 16-bit
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(sheet, frameIndex * 48, 0, 48, 48, -28, -52, 56, 56);
 
       // Chong chóng tre quay tít trên đầu khi di chuyển hoặc nâng cấp
       if (upgrades && upgrades.bambooCopter && upgrades.bambooCopter.level > 0) {
         ctx.fillStyle = "#eab308";
-        ctx.fillRect(-2, -62, 4, 8);
+        ctx.fillRect(-2, -58, 4, 8);
         ctx.fillStyle = "#ca8a04";
         const rotorAngle = (this.animTimer * 18) % (Math.PI * 2);
         ctx.save();
-        ctx.translate(0, -62);
+        ctx.translate(0, -58);
         ctx.scale(Math.cos(rotorAngle), 1);
         ctx.fillRect(-15, -2, 30, 4);
         ctx.restore();
@@ -156,7 +157,8 @@ class AssistantDorami {
 
     if (window.assetLoader.hasImage('dorami')) {
       const img = window.assetLoader.getImage('dorami');
-      ctx.drawImage(img, -28, -50, 56, 56);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, -24, -48, 48, 48);
     }
 
     // Tên trợ lý Dorami
@@ -431,7 +433,8 @@ class Customer {
 
     if (window.assetLoader.hasImage(this.sprite)) {
       const img = window.assetLoader.getImage(this.sprite);
-      ctx.drawImage(img, -26, -50, 52, 52);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, -24, -48, 48, 48);
     } else {
       ctx.fillStyle = this.shirt;
       ctx.fillRect(-10, -14, 20, 16);
