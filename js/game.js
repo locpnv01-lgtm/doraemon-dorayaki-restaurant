@@ -225,24 +225,53 @@ class Game {
   render() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Nền sàn gỗ nhà hàng cao cấp
-    this.ctx.fillStyle = "#fffbeb";
+    // Nền sàn gỗ ấm cúng phong cách tiệm Nhật truyền thống (Tatami Wood Flooring)
+    this.ctx.fillStyle = "#fef3c7";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Kẻ vạch ô gạch Nhật Bản
-    this.ctx.strokeStyle = "#fef08a";
+    // Kẻ chỉ thảm Tatami / Gỗ cao cấp
+    this.ctx.strokeStyle = "#e2d2a4";
     this.ctx.lineWidth = 1;
-    for (let x = 0; x < this.canvas.width; x += 40) {
+    for (let x = 0; x < this.canvas.width; x += 48) {
       this.ctx.beginPath();
       this.ctx.moveTo(x, 0);
       this.ctx.lineTo(x, this.canvas.height);
       this.ctx.stroke();
     }
-    for (let y = 0; y < this.canvas.height; y += 40) {
+    for (let y = 0; y < this.canvas.height; y += 48) {
       this.ctx.beginPath();
       this.ctx.moveTo(0, y);
       this.ctx.lineTo(this.canvas.width, y);
       this.ctx.stroke();
+    }
+
+    // Tường ốp gỗ trên cùng
+    this.ctx.fillStyle = "#78350f";
+    this.ctx.fillRect(0, 0, this.canvas.width, 36);
+    this.ctx.fillStyle = "#fbbf24";
+    this.ctx.font = "bold 13px sans-serif";
+    this.ctx.fillText("🏮 TIỆM BÁNH RÁN DORAEMON & NHỮNG NGƯỜI BẠN • PHONG CÁCH NHẬT BẢN TRUYỀN THỐNG 🏮", 180, 23);
+
+    // ĐÈN LỒNG ĐỎ TREO 2 BÊN TƯỜNG (Lantern decor)
+    if (window.assetLoader.hasImage('decor_lantern')) {
+      const lantern = window.assetLoader.getImage('decor_lantern');
+      this.ctx.drawImage(lantern, 20, 20, 48, 72);
+      this.ctx.drawImage(lantern, this.canvas.width - 68, 20, 48, 72);
+      this.ctx.drawImage(lantern, 240, 20, 40, 60);
+      this.ctx.drawImage(lantern, this.canvas.width - 280, 20, 40, 60);
+    }
+
+    // CHẬU CÂY BONSAI TRANG TRÍ (Decor plants ở 2 góc tiệm)
+    if (window.assetLoader.hasImage('decor_bonsai')) {
+      const bonsai = window.assetLoader.getImage('decor_bonsai');
+      this.ctx.drawImage(bonsai, 25, 480, 56, 70);
+      this.ctx.drawImage(bonsai, this.canvas.width - 85, 480, 56, 70);
+    }
+
+    // MÈO THẦN TÀI MANEKI-NEKO TRÊN QUẦY THU NGÂN / BỒN
+    if (window.assetLoader.hasImage('decor_lucky_cat')) {
+      const cat = window.assetLoader.getImage('decor_lucky_cat');
+      this.ctx.drawImage(cat, 820, 65, 48, 54);
     }
 
     // Cánh Cửa Thần Kỳ VIP (Nếu có nâng cấp)
