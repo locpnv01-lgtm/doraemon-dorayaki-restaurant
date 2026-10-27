@@ -1,4 +1,4 @@
-// Asset Loader với cơ chế Dual-Mode: Dùng file ảnh thật từ assets/sprites/ HOẶC Fallback Procedural Art
+// Asset Loader hỗ trợ Sprite Sheets & Hiệu ứng động
 class AssetLoader {
   constructor() {
     this.images = {};
@@ -14,7 +14,6 @@ class AssetLoader {
       this.loadedCount++;
     };
     img.onerror = () => {
-      // Khi không có file ngoài, gán null để fallback sang procedural canvas render
       this.images[name] = null;
       this.loadedCount++;
     };
@@ -22,10 +21,11 @@ class AssetLoader {
   }
 
   init() {
-    // Thử load các sprite tùy biến nếu user đặt vào
+    this.loadImage('doraemon_sheet', 'assets/sprites/doraemon_sheet.png');
     this.loadImage('doraemon', 'assets/sprites/doraemon.png');
+    this.loadImage('dorami', 'assets/sprites/dorami.png');
     this.loadImage('dorayaki', 'assets/sprites/dorayaki.png');
-    this.loadImage('table', 'assets/sprites/table.png');
+    this.loadImage('dirty_dish', 'assets/sprites/dirty_dish.png');
     this.loadImage('customer_1', 'assets/sprites/customer_1.png');
     this.loadImage('customer_2', 'assets/sprites/customer_2.png');
     this.loadImage('customer_3', 'assets/sprites/customer_3.png');

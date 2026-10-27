@@ -1,4 +1,4 @@
-// Game Engine Main Loop & Event Management
+// Game Engine Loop v2.0: Quản lý nhà hàng quy mô lớn, dọn rửa bát đĩa, trợ lý Dorami
 class Game {
   constructor() {
     this.canvas = document.getElementById("gameCanvas");
@@ -15,22 +15,26 @@ class Game {
     this.setupInputs();
     this.setupUI();
 
-    // Game loop request
     requestAnimationFrame((t) => this.loop(t));
   }
 
   initEntities() {
-    this.player = new window.PlayerDoraemon(480, 260);
-    this.stove = new window.Stove(410, 80);
+    this.player = new window.PlayerDoraemon(520, 260);
+    this.stove = new window.Stove(440, 60);
+    this.sink = new window.DishSink(880, 60);
 
+    // 6 bàn ăn được bố trí 2 hàng rộng rãi
     this.tables = [
-      new window.Table(1, 160, 200),
-      new window.Table(2, 700, 200),
-      new window.Table(3, 160, 380),
-      new window.Table(4, 700, 380)
+      new window.Table(1, 140, 180),
+      new window.Table(2, 470, 180),
+      new window.Table(3, 800, 180),
+      new window.Table(4, 140, 380),
+      new window.Table(5, 470, 380),
+      new window.Table(6, 800, 380)
     ];
 
     this.customers = [];
+    this.dorami = null;
     this.stove.startCook();
   }
 
@@ -43,7 +47,7 @@ class Game {
       const clickX = (e.clientX - rect.left) * scaleX;
       const clickY = (e.clientY - rect.top) * scaleY;
 
-      // 1. Click vào bếp nướng
+      // 1. Click Bếp lấy bánh
       if (
         clickX >= this.stove.x && clickX <= this.stove.x + this.stove.w &&
         clickY >= this.stove.y && clickY <= this.stove.y + this.stove.h
@@ -54,7 +58,18 @@ class Game {
         return;
       }
 
-      // 2. Click vào bàn ăn
+      // 2. Click Bồn Rửa Bát
+      if (
+        clickX >= this.sink.x && clickX <= this.sink.x + this.sink.w &&
+        clickY >= this.sink.y && clickY <= this.sink.y + this.sink.h
+      ) {
+        this.player.targetX = this.sink.x + this.sink.w / 2;
+        this.player.targetY = this.sink.y + this.sink.h + 30;
+        this.pendingAction = { type: "WASH_DISHES" };
+        return;
+      }
+
+      // 3. Click Bàn Ăn (Phục vụ hoặc Thu gom dĩa dơ)
       const activeTablesCount = this.upgrades.expandTable.level;
       for (let i = 0; i < activeTablesCount; i++) {
         const table = this.tables[i];
@@ -64,12 +79,12 @@ class Game {
         ) {
           this.player.targetX = table.x + table.w / 2;
           this.player.targetY = table.y + table.h / 2;
-          this.pendingAction = { type: "SERVE_TABLE", target: table };
+          this.pendingAction = { type: "INTERACT_TABLE", target: table };
           return;
         }
       }
 
-      // 3. Click di chuyển tự do
+      // Di chuyển tự do
       this.player.targetX = clickX;
       this.player.targetY = clickY;
       this.pendingAction = null;
@@ -94,9 +109,9 @@ class Game {
       const isMax = up.level >= up.maxLevel;
       btn.disabled = isMax || this.coins < up.cost;
       btn.innerHTML = `
-        <div class="upgrade-title"><strong>${up.name}</strong> (Lv ${up.level}/${up.maxLevel})</div>
+        <div class="upgrade-title"><strong>${up.name}</strong> (Cấp ${up.level}/${up.maxLevel})</div>
         <div class="upgrade-desc">${up.description}</div>
-        <div class="upgrade-cost">${isMax ? "Tối Đa" : "💰 " + up.cost + " xu"}</div>
+        <div class="upgrade-cost">${isMax ? "★ ĐÃ MAX CẤP" : "💰 " + up.cost + " xu"}</div>
       `;
       btn.onclick = () => this.buyUpgrade(up.id);
       this.upgradeButtonsContainer.appendChild(btn);
@@ -108,8 +123,14 @@ class Game {
     if (up && up.level < up.maxLevel && this.coins >= up.cost) {
       this.coins -= up.cost;
       up.level++;
-      up.cost = Math.floor(up.cost * 1.6);
+      up.cost = Math.floor(up.cost * 1.5);
       window.soundManager.playUpgrade();
+
+      // Kích hoạt Dorami phụ bếp
+      if (id === "hireDorami" && !this.dorami) {
+        this.dorami = new window.AssistantDorami(this.sink.x + 20, this.sink.y + 60);
+      }
+
       this.renderUpgradeButtons();
     }
   }
@@ -123,77 +144,93 @@ class Game {
       const customerConfig = window.GAME_CONFIG.customers[
         Math.floor(Math.random() * window.GAME_CONFIG.customers.length)
       ];
-      const newCustomer = new window.Customer(customerConfig, chosenTable);
+      // Nếu có Cánh cửa thần kỳ thì có 30% tỷ lệ sinh khách VIP
+      const isVIP = (this.upgrades.anywhereDoor && this.upgrades.anywhereDoor.level > 0 && Math.random() < 0.35);
+      const newCustomer = new window.Customer(customerConfig, chosenTable, isVIP);
       this.customers.push(newCustomer);
       window.soundManager.playBell();
     }
   }
 
   update(dt) {
-    // 1. Cập nhật bếp nấu theo cấp độ
-    const cookDuration = window.GAME_CONFIG.economy.dorayakiBaseCookTime * Math.pow(0.8, this.upgrades.stoveSpeed.level - 1);
+    const cookDuration = window.GAME_CONFIG.economy.dorayakiBaseCookTime * Math.pow(0.75, this.upgrades.stoveSpeed.level - 1);
     this.stove.update(dt, cookDuration);
 
-    // 2. Cập nhật Doraemon
     this.player.update(dt, this.upgrades);
 
-    // 3. Kiểm tra tương tác khi Doraemon đến gần mục tiêu
+    if (this.dorami) {
+      this.dorami.update(dt, this);
+    }
+
+    // Tương tác của người chơi
     if (this.pendingAction) {
       const dist = Math.hypot(this.player.x - this.player.targetX, this.player.y - this.player.targetY);
-      if (dist < 25) {
+      if (dist < 35) {
         if (this.pendingAction.type === "TAKE_FOOD") {
           if (this.player.carryingDorayaki < 3 && this.stove.takeDorayaki()) {
             this.player.carryingDorayaki++;
             window.soundManager.playCook();
           }
-        } else if (this.pendingAction.type === "SERVE_TABLE") {
+        } else if (this.pendingAction.type === "INTERACT_TABLE") {
           const table = this.pendingAction.target;
+          // Phục vụ khách bánh rán
           if (table.customer && table.customer.state === "WAITING_FOOD" && this.player.carryingDorayaki > 0) {
             table.customer.serve();
             this.player.carryingDorayaki--;
+          }
+          // Dọn bàn dơ
+          else if (table.isDirty) {
+            table.clean();
+            this.player.carryingDishes++;
+            this.coins += window.GAME_CONFIG.economy.cleanTipReward;
+            window.soundManager.playCoin();
+          }
+        } else if (this.pendingAction.type === "WASH_DISHES") {
+          // Rửa dĩa tại bồn
+          if (this.player.carryingDishes > 0) {
+            this.player.carryingDishes = 0;
+            window.soundManager.playCook();
           }
         }
         this.pendingAction = null;
       }
     }
 
-    // 4. Sinh khách định kỳ
+    // Khách hàng đông đúc
     this.spawnTimer += dt;
     if (this.spawnTimer >= window.GAME_CONFIG.economy.customerSpawnInterval) {
       this.spawnTimer = 0;
       this.spawnCustomer();
     }
 
-    // 5. Cập nhật khách hàng
     this.customers.forEach(c => {
       c.update(dt, (leftCustomer) => {
         if (leftCustomer.isSatisfied) {
-          const earned = window.GAME_CONFIG.economy.dorayakiSellPrice + (Math.random() < leftCustomer.tipChance ? 5 : 0);
+          const multiplier = leftCustomer.isVIP ? 2.5 : 1.0;
+          const earned = Math.floor((window.GAME_CONFIG.economy.dorayakiSellPrice + (Math.random() < leftCustomer.tipChance ? 8 : 0)) * multiplier);
           this.coins += earned;
-          this.reputation += 10;
+          this.reputation += leftCustomer.isVIP ? 25 : 10;
           window.soundManager.playCoin();
           this.renderUpgradeButtons();
         }
-        // Xóa khách khỏi danh sách
         this.customers = this.customers.filter(item => item !== leftCustomer);
       });
     });
 
-    // 6. Cập nhật HUD
     if (this.coinsEl) this.coinsEl.innerText = this.coins;
     if (this.repEl) this.repEl.innerText = this.reputation;
-    if (this.dorayakiInventoryEl) this.dorayakiInventoryEl.innerText = `${this.player.carryingDorayaki}/3`;
+    if (this.dorayakiInventoryEl) this.dorayakiInventoryEl.innerText = `${this.player.carryingDorayaki}/3 bánh | ${this.player.carryingDishes} dĩa dơ`;
   }
 
   render() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Sàn nhà lát gạch kiểu Nhật ấm cúng
-    this.ctx.fillStyle = "#fef3c7";
+    // Nền sàn gỗ nhà hàng cao cấp
+    this.ctx.fillStyle = "#fffbeb";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Lưới viền sàn
-    this.ctx.strokeStyle = "#fde68a";
+    // Kẻ vạch ô gạch Nhật Bản
+    this.ctx.strokeStyle = "#fef08a";
     this.ctx.lineWidth = 1;
     for (let x = 0; x < this.canvas.width; x += 40) {
       this.ctx.beginPath();
@@ -208,24 +245,51 @@ class Game {
       this.ctx.stroke();
     }
 
+    // Cánh Cửa Thần Kỳ VIP (Nếu có nâng cấp)
+    if (this.upgrades.anywhereDoor && this.upgrades.anywhereDoor.level > 0) {
+      this.ctx.save();
+      // Khung cửa hồng Dokodemo Door
+      this.ctx.fillStyle = "#ec4899";
+      this.ctx.fillRect(40, 50, 60, 90);
+      this.ctx.strokeStyle = "#be185d";
+      this.ctx.lineWidth = 3;
+      this.ctx.strokeRect(40, 50, 60, 90);
+      // Nắm đấm cửa tròn vàng
+      this.ctx.fillStyle = "#facc15";
+      this.ctx.beginPath();
+      this.ctx.arc(88, 95, 4, 0, Math.PI * 2);
+      this.ctx.fill();
+      // Bảng tên
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = "bold 9px sans-serif";
+      this.ctx.fillText("CỬA THẦN KỲ", 44, 44);
+      this.ctx.restore();
+    }
+
     // Cửa ra vào phía dưới
-    this.ctx.fillStyle = "#78350f";
-    this.ctx.fillRect(420, 585, 120, 15);
+    this.ctx.fillStyle = "#92400e";
+    this.ctx.fillRect(460, 625, 120, 15);
     this.ctx.fillStyle = "#ffffff";
     this.ctx.font = "bold 10px sans-serif";
-    this.ctx.fillText("CỬA RA VÀO", 450, 596);
+    this.ctx.fillText("CỬA ĐÓN KHÁCH", 480, 636);
 
-    // Bếp
+    // Bếp và bồn rửa bát
     this.stove.render(this.ctx);
+    this.sink.render(this.ctx);
 
-    // Bàn ăn đang hoạt động
+    // Bàn ăn
     const activeTables = this.tables.slice(0, this.upgrades.expandTable.level);
     activeTables.forEach(t => t.render(this.ctx));
 
     // Khách hàng
     this.customers.forEach(c => c.render(this.ctx));
 
-    // Doraemon (Nhân vật chính)
+    // Trợ lý Dorami
+    if (this.dorami) {
+      this.dorami.render(this.ctx);
+    }
+
+    // Doraemon nhân vật chính
     this.player.render(this.ctx, this.upgrades);
   }
 
